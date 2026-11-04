@@ -10,13 +10,15 @@ import { PostureMonitor, cueForEvent, visibilityCue, type Cue } from "./feedback
 import { jointAngle, toPixels } from "./geometry";
 import { tripleVisibility, type Landmark, type Side, type Triple } from "./landmarks";
 import { RepCounter, DEFAULT_COUNTER_OPTIONS, type Phase, type RepEvent, type Zone } from "./repCounter";
-import { Ema } from "./smoothing";
+import { Ema, alphaForInterval } from "./smoothing";
 
 export type ArmMode = "left" | "right" | "both";
 
 export interface TrackerOptions {
-  /** EMA weight of the newest angle sample. */
+  /** EMA weight of the newest angle sample, used when frames carry no timestamp. */
   readonly alpha: number;
+  /** EMA time constant used when frames are timestamped (frame-rate independent). */
+  readonly smoothingTauMs: number;
   readonly minDwellFrames: number;
   readonly maxGapFrames: number;
   readonly partialFraction: number;
@@ -31,6 +33,7 @@ export interface TrackerOptions {
 
 export const DEFAULT_TRACKER_OPTIONS: TrackerOptions = {
   alpha: 0.4,
+  smoothingTauMs: 65,
   ...DEFAULT_COUNTER_OPTIONS,
   visibilityThreshold: 0.5,
   sideSwitchMargin: 0.15,
@@ -92,6 +95,7 @@ interface Channel {
 
 export class ExerciseTracker {
   private channels: Channel[];
+  private lastTimestamp: number | null = null;
 
   constructor(
     readonly def: ExerciseDef,
@@ -114,15 +118,25 @@ export class ExerciseTracker {
   }
 
   reset(): void {
+    this.lastTimestamp = null;
     this.channels = this.channels.map((ch) => this.makeChannel(ch.arm));
   }
 
   /**
    * Process one frame. `landmarks` is null when no person was detected. `width` and
    * `height` are the frame's pixel dimensions, needed to measure angles correctly.
+   * `timestampMs` (optional) makes smoothing independent of the frame rate.
    */
-  update(landmarks: readonly Landmark[] | null, width: number, height: number): TrackerFrame {
+  update(landmarks: readonly Landmark[] | null, width: number, height: number, timestampMs?: number): TrackerFrame {
     const events: RepEvent[] = [];
+    let alpha = this.options.alpha;
+    if (timestampMs !== undefined) {
+      if (this.lastTimestamp !== null) {
+        const dt = Math.min(500, Math.max(1, timestampMs - this.lastTimestamp));
+        alpha = alphaForInterval(dt, this.options.smoothingTauMs);
+      }
+      this.lastTimestamp = timestampMs;
+    }
     let postureCue: Cue | null = null;
 
     const states = this.channels.map((ch): ChannelState => {
@@ -133,7 +147,7 @@ export class ExerciseTracker {
         ch.posture.forEach((p) => p.reset());
       } else ch.gap = 0;
 
-      const angle = raw === null ? null : ch.ema.update(raw);
+      const angle = raw === null ? null : ch.ema.update(raw, alpha);
       const result = ch.counter.update(angle);
       if (result.event) events.push(result.event);
 

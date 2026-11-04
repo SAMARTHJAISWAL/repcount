@@ -11,11 +11,12 @@ export class Ema {
     if (!(alpha > 0 && alpha <= 1)) throw new RangeError("alpha must be in (0, 1]");
   }
 
-  update(sample: number): number {
+  /** Blend in a sample. `alpha` overrides the default weight for this one sample. */
+  update(sample: number, alpha = this.alpha): number {
     if (!Number.isFinite(sample)) {
       throw new RangeError("EMA sample must be a finite number");
     }
-    this.current = this.current === null ? sample : this.alpha * sample + (1 - this.alpha) * this.current;
+    this.current = this.current === null ? sample : alpha * sample + (1 - alpha) * this.current;
     return this.current;
   }
 
@@ -26,4 +27,14 @@ export class Ema {
   reset(): void {
     this.current = null;
   }
+}
+
+/**
+ * Per-sample EMA weight for a time constant `tauMs`, given the time since the previous
+ * sample. Frame-rate independent: at 30 fps with tau = 65 ms this is ≈ 0.4, and at
+ * 10 fps it rises to ≈ 0.78, so a slow device doesn't lag behind the movement.
+ */
+export function alphaForInterval(dtMs: number, tauMs: number): number {
+  if (!(dtMs > 0) || !(tauMs > 0)) return 1;
+  return 1 - Math.exp(-dtMs / tauMs);
 }

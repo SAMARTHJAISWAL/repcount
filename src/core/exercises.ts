@@ -127,7 +127,7 @@ export const EXERCISES: Readonly<Record<ExerciseId, ExerciseDef>> = {
     jointLabel: "Shoulder",
     strategy: "both-average",
     joint: SHOULDER,
-    thresholds: { rest: 45, active: 135 },
+    thresholds: { rest: 45, active: 120 },
     cameraTip: "Face the camera with your arms in view",
     visibilityHint: WHOLE_BODY,
     cues: { shallow: "Raise your arms overhead", incomplete: "Bring your arms down to your sides", good: "Nice rhythm" },

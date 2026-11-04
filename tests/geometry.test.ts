@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { clamp, jointAngle, toPixels } from "../src/core/geometry";
-import { Ema } from "../src/core/smoothing";
+import { Ema, alphaForInterval } from "../src/core/smoothing";
 import { formatDuration } from "../src/core/format";
 import { Stopwatch } from "../src/core/stopwatch";
 
@@ -67,6 +67,15 @@ describe("Ema", () => {
     const ema = new Ema(0.3);
     for (let i = 0; i < 10; i++) ema.update(170);
     expect(ema.update(60)).toBeCloseTo(137, 6);
+  });
+
+  it("derives a frame-rate independent weight from the frame interval", () => {
+    expect(alphaForInterval(33, 65)).toBeCloseTo(0.4, 1);
+    expect(alphaForInterval(100, 65)).toBeGreaterThan(0.75);
+    expect(alphaForInterval(0, 65)).toBe(1);
+    const ema = new Ema(0.4);
+    ema.update(100);
+    expect(ema.update(0, 1)).toBe(0); // per-sample override
   });
 
   it("resets and validates its inputs", () => {

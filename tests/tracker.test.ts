@@ -106,6 +106,19 @@ describe("ExerciseTracker: squat", () => {
     expect(t.reps).toBe(4);
   });
 
+  it("time-based smoothing keeps up on a slow device (8 fps)", () => {
+    // Brief holds at 8 fps: with a fixed per-frame α of 0.4 the EMA is still climbing
+    // when the user turns around. Timestamped frames adapt α to the frame interval.
+    const pose = sidePose(squat.joint, "left");
+    const angles = [...hold(172, 4), ...repeat(2, () => [...hold(80, 4), ...hold(172, 4)])];
+    const fixed = new ExerciseTracker(squat);
+    angles.forEach((a) => fixed.update(pose(a), W, H));
+    const timed = new ExerciseTracker(squat);
+    angles.forEach((a, i) => timed.update(pose(a), W, H, i * 125));
+    expect(fixed.reps).toBe(0);
+    expect(timed.reps).toBe(2);
+  });
+
   it("reset() zeroes the count", () => {
     const t = new ExerciseTracker(squat);
     feed(t, [...rep(172, 80), ...hold(172, 6)].map(sidePose(squat.joint, "left")));
