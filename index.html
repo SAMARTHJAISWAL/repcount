@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>RepCount · on-device workout rep counter</title>
+    <meta
+      name="description"
+      content="Count squats, push-ups, curls and jumping jacks with your webcam. Pose detection runs entirely in your browser; no video leaves your device."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f3f1ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0f0b" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:title" content="RepCount" />
+    <meta property="og:description" content="A workout rep counter that runs entirely in your browser." />
+  </head>
+  <body>
+    <a class="skip-link" href="#controls">Skip to controls</a>
+
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="1" y="1" width="30" height="30" rx="8" />
+          <path d="M8 22 L14 10 L18 18 L24 8" />
+        </svg>
+        <span class="brand-name">RepCount</span>
+      </div>
+      <p class="privacy-pill" title="Pose detection runs on this device with MediaPipe. No video or images are uploaded.">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 2.5 3.8v3.9c0 3.2 2.3 5.8 5.5 6.8 3.2-1 5.5-3.6 5.5-6.8V3.8Z" /></svg>
+        <span>Runs <span class="optional">entirely </span>in your browser</span>
+      </p>
+    </header>
+
+    <main class="layout">
+      <section class="stage-wrap" aria-label="Camera view">
+        <div class="stage" id="stage" data-state="empty">
+          <video id="video" playsinline muted aria-hidden="true"></video>
+          <canvas id="overlay" aria-hidden="true"></canvas>
+
+          <div class="stage-empty" id="stage-empty">
+            <p class="eyebrow">Squats · Push-ups · Curls · Jumping jacks</p>
+            <h1>Count every rep.<br /><span>Hands free.</span></h1>
+            <p class="lede">Point your camera at yourself, or drop in a workout video. Your skeleton is tracked on-device and every rep is counted for you.</p>
+            <div class="cta-row">
+              <button type="button" class="btn btn-primary" id="btn-camera">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6h9a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm10 3 5-3v8l-5-3" /></svg>
+                Use camera
+              </button>
+              <label class="btn btn-ghost" for="file-input">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6 7m4-4 4 4M3 13v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" /></svg>
+                Upload a video
+              </label>
+              <input type="file" id="file-input" accept="video/*" class="visually-hidden" />
+            </div>
+            <p class="fineprint">Nothing is recorded or uploaded. The pose model is downloaded once, then everything runs locally.</p>
+          </div>
+
+          <div class="chip status-chip" id="status" role="status" data-tone="info">Loading pose model…</div>
+          <div class="stage-tools">
+            <button type="button" class="icon-btn" id="btn-mirror" aria-pressed="true" title="Mirror preview (M)">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2v16M7 5 3 10l4 5M13 5l4 5-4 5" /></svg>
+              <span class="visually-hidden">Mirror preview</span>
+            </button>
+            <button type="button" class="icon-btn" id="btn-source" title="Change source">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4h12v12H4zM4 8h12" /></svg>
+              <span class="visually-hidden">Change video source</span>
+            </button>
+          </div>
+          <div class="cue" id="cue" data-tone="info" hidden></div>
+        </div>
+        <p class="camera-tip" id="camera-tip"></p>
+      </section>
+
+      <section class="panel" id="controls" aria-label="Workout controls">
+        <fieldset class="exercise-picker">
+          <legend>Exercise</legend>
+          <div class="segmented" id="exercise-options"></div>
+        </fieldset>
+
+        <fieldset class="arm-picker" id="arm-picker" hidden>
+          <legend>Arms</legend>
+          <div class="segmented segmented-small">
+            <label><input type="radio" name="arm" value="left" /><span>Left</span></label>
+            <label><input type="radio" name="arm" value="both" checked /><span>Both</span></label>
+            <label><input type="radio" name="arm" value="right" /><span>Right</span></label>
+          </div>
+        </fieldset>
+
+        <div class="scoreboard">
+          <div class="reps">
+            <span class="reps-label">Reps</span>
+            <output class="reps-value" id="reps" aria-live="off">0</output>
+            <span class="reps-detail" id="reps-detail"></span>
+          </div>
+          <div class="gauge" id="gauge">
+            <svg viewBox="0 0 200 118" role="img" aria-labelledby="gauge-title">
+              <title id="gauge-title">Joint angle gauge</title>
+              <path class="gauge-track" d="M 16 104 A 84 84 0 0 1 184 104" />
+              <path class="gauge-zone gauge-zone-rest" id="zone-rest" d="" />
+              <path class="gauge-zone gauge-zone-active" id="zone-active" d="" />
+              <g id="gauge-ticks"></g>
+              <line class="gauge-needle" id="gauge-needle" x1="100" y1="104" x2="100" y2="30" />
+              <circle class="gauge-hub" cx="100" cy="104" r="5" />
+            </svg>
+            <div class="gauge-readout">
+              <span class="gauge-angle" id="gauge-angle">–</span>
+              <span class="gauge-caption" id="gauge-caption">Knee angle</span>
+            </div>
+            <div class="phase" id="phase" data-phase="idle">Waiting</div>
+          </div>
+        </div>
+
+        <div class="timer-row">
+          <div class="timer">
+            <span class="timer-label">Set time</span>
+            <span class="timer-value" id="timer">0:00</span>
+          </div>
+          <div class="controls">
+            <button type="button" class="btn btn-primary btn-start" id="btn-start" disabled aria-keyshortcuts="Space">
+              <span class="label">Start</span><kbd>Space</kbd>
+            </button>
+            <button type="button" class="btn btn-ghost" id="btn-finish" disabled aria-keyshortcuts="F">
+              Log set<kbd>F</kbd>
+            </button>
+            <button type="button" class="btn btn-ghost" id="btn-reset" disabled aria-keyshortcuts="R">
+              Reset<kbd>R</kbd>
+            </button>
+          </div>
+        </div>
+
+        <section class="log" aria-labelledby="log-title">
+          <div class="log-head">
+            <h2 id="log-title">Session log</h2>
+            <div class="log-actions">
+              <button type="button" class="btn btn-small" id="btn-export" disabled>Export CSV</button>
+              <button type="button" class="btn btn-small btn-quiet" id="btn-clear" disabled>Clear</button>
+            </div>
+          </div>
+          <p class="log-empty" id="log-empty">No sets yet. Finish a set with <kbd>F</kbd> and it lands here, saved on this device only.</p>
+          <table class="log-table" id="log-table" hidden>
+            <thead>
+              <tr><th scope="col">Exercise</th><th scope="col" class="num">Reps</th><th scope="col" class="num">Time</th><th scope="col" class="num">When</th></tr>
+            </thead>
+            <tbody id="log-body"></tbody>
+            <tfoot><tr id="log-total"></tr></tfoot>
+          </table>
+        </section>
+
+        <details class="help">
+          <summary>Keyboard shortcuts &amp; how counting works</summary>
+          <ul class="shortcuts">
+            <li><kbd>Space</kbd> start / pause</li>
+            <li><kbd>F</kbd> log the set</li>
+            <li><kbd>R</kbd> reset the set</li>
+            <li><kbd>1</kbd>–<kbd>4</kbd> pick exercise</li>
+            <li><kbd>M</kbd> mirror preview</li>
+          </ul>
+          <p>
+            Each rep is a joint moving from its rest position into its active zone and back. The gauge shows both
+            zones; the gap between them is a dead band, so hovering near a line never double-counts. Reps only count
+            while the needed joints are clearly visible.
+          </p>
+        </details>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Pose detection by <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker" rel="noopener">MediaPipe</a>.
+        Your video never leaves this device; your set log lives in this browser's local storage.
+        <a href="https://github.com/SAMARTHJAISWAL/repcount" rel="noopener">Source on GitHub</a>
+      </p>
+    </footer>
+
+    <div class="visually-hidden" aria-live="polite" id="announcer"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
