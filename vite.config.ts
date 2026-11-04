@@ -1,16 +1,15 @@
 import { defineConfig } from "vitest/config";
 
-// Served from https://samarthjaiswal.github.io/repcount/ on GitHub Pages, so every
-// asset URL is prefixed with /repcount/. `npm run dev` and `npm run preview` both
-// serve under the same base (open http://localhost:5173/repcount/ or :4173/repcount/).
+// Vercel (and local dev) serve the app from the domain root. The GitHub Pages
+// mirror lives under /repcount/, so its workflow builds with GITHUB_PAGES=true.
+const base = process.env.GITHUB_PAGES === "true" ? "/repcount/" : "/";
+
 export default defineConfig({
-  base: "/repcount/",
+  base,
   build: {
     target: "es2022",
     sourcemap: true,
   },
-  server: { open: "/repcount/" },
-  preview: { open: "/repcount/" },
   test: {
     include: ["tests/**/*.test.ts"],
     environment: "node",

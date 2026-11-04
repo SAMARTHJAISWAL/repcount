@@ -88,12 +88,17 @@ Requires Node 22.12+ (see `.nvmrc`).
 
 ```bash
 npm ci
-npm run dev        # http://localhost:5173/repcount/
+npm run dev        # http://localhost:5173/
 npm run build      # typecheck + production build into dist/
-npm run preview    # serve dist/ at http://localhost:4173/repcount/
+npm run preview    # serve dist/ at http://localhost:4173/
 ```
 
-The app is built with `base: "/repcount/"` for GitHub Pages, so both servers serve it under `/repcount/`. Webcam access needs a secure context: `localhost` qualifies, but a LAN IP over plain HTTP does not.
+Webcam access needs a secure context: `localhost` qualifies, but a LAN IP over plain HTTP does not.
+
+## Deploy
+
+- **Vercel:** import the repo at [vercel.com/new](https://vercel.com/new). The Vite preset is detected and `vercel.json` adds security and caching headers. Every push to `main` redeploys.
+- **GitHub Pages mirror:** `.github/workflows/deploy.yml` builds with `GITHUB_PAGES=true`, which sets the Vite base to `/repcount/`, and publishes to https://samarthjaiswal.github.io/repcount/.
 
 ## Tests
 
